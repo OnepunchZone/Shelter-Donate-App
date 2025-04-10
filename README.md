@@ -160,7 +160,7 @@ spring:
   "username": "newuser",
   "password": "password123",
   "balance": 1000.00,
-  "role": "ROLE_USER"
+  "role": "USER"
 }
 ```
 ## Настройки безопасности
