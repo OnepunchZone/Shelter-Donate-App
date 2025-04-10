@@ -1,6 +1,9 @@
 package ru.save_pet.shelter_donate_app.controllers.user;
 
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import ru.save_pet.shelter_donate_app.dtos.user.UserDto;
@@ -13,6 +16,7 @@ import ru.save_pet.shelter_donate_app.services.user.UserService;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestController
 @RequestMapping("api/v1/auth")
 @AllArgsConstructor
@@ -25,6 +29,7 @@ public class UserController {
     @GetMapping("/all")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public UserLstDto getAllUsers() {
+        log.info("Получение всех пользователей");
         return new UserLstDto(
                 userService.getAllUsers()
                         .stream()
@@ -36,6 +41,7 @@ public class UserController {
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public UserDto getUserById(@PathVariable Long id) {
+        log.info("Получение пользователя по id = {}", id);
         return USER_DTO_FUNCTION.apply(
                 userService.getById(id)
                         .orElseThrow(()-> new BusinessLogicException("Пользователь не найден."))
@@ -43,9 +49,11 @@ public class UserController {
     }
 
     @PostMapping("/new-user")
-    public String addNewUser(@RequestBody UserRegistrationDto registrationDto) {
+    public ResponseEntity<String> addNewUser(@RequestBody @Valid UserRegistrationDto registrationDto) {
+        log.info("Попытка создания пользователя: {}", registrationDto.username());
         userService.addUser(registrationDto);
+        log.info("Пользователь {} успешно создан", registrationDto.username());
 
-        return "Пользователь " + registrationDto.username() + " сохранён.";
+        return ResponseEntity.ok("Пользователь " + registrationDto.username() + " сохранён.");
     }
 }

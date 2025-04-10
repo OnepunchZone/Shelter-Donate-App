@@ -1,8 +1,22 @@
 package ru.save_pet.shelter_donate_app.dtos.shelter;
 
-import ru.save_pet.shelter_donate_app.entities.city.City;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 
-public record ShelterDto(Long id, String name, String accountNumber, BigDecimal balance, Long cityId) {
+public record ShelterDto(
+        Long id,
+
+        @NotBlank(message = "Название приюта не может быть пустым")
+        String name,
+
+        @NotBlank(message = "Номер счёта не может быть пустым")
+        String accountNumber,
+
+        BigDecimal balance,
+
+        @NotNull(message = "ID города должен быть указан")
+        Long cityId
+) {
 }

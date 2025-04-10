@@ -1,6 +1,7 @@
 package ru.save_pet.shelter_donate_app.services.donate;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.save_pet.shelter_donate_app.dtos.donate.DonationDto;
@@ -16,12 +17,14 @@ import ru.save_pet.shelter_donate_app.repositories.city.CityRepository;
 import ru.save_pet.shelter_donate_app.repositories.donate.DonationRepository;
 import ru.save_pet.shelter_donate_app.repositories.shelter.ShelterRepository;
 import ru.save_pet.shelter_donate_app.repositories.user.UserRepository;
+import ru.save_pet.shelter_donate_app.validators.DonationSerValidate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DonationService {
@@ -30,6 +33,7 @@ public class DonationService {
     private final CityRepository cityRepository;
     private final ShelterRepository shelterRepository;
     private final DonationMapper donationMapper;
+    private final DonationSerValidate validateDonate;
 
     public DonationLstDto getAllDonations() {
         List<DonationDto> donationList = donationRepository.findAll()
@@ -47,30 +51,34 @@ public class DonationService {
     }
 
     @Transactional
-    public Donation makeDonation(DonationDto request, Long userId) {
+    public void makeDonation(DonationDto donationDto, Long userId) {
+        log.info("Попытка создать донат от пользователя id={} на сумму {}", userId, donationDto.amount());
+
         MyUser user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
+                .orElseThrow(() -> new BusinessLogicException("Пользователь не найден"));
 
-        if (user.getBalance().compareTo(request.amount()) < 0) {
-            throw new RuntimeException("Недостаточно средств");
+        if (user.getBalance().compareTo(donationDto.amount()) < 0) {
+            log.warn("Недостаточно средств у пользователя id={}", userId);
+            throw new BusinessLogicException("Недостаточно средств");
         }
 
-        if (request.amount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalStateException("Сумма должна быть положительной");
-        }
+        validateDonate.validate(donationDto);
 
-        if (request.shelterId() != null) {
-            return processShelterDonation(request, user);
-        } else if (request.cityId() != null) {
-            return processCityDonation(request, user);
+        if (donationDto.shelterId() != null) {
+            log.info("Попытка создать донат по id приюта = {}", donationDto.shelterId());
+            processShelterDonation(donationDto, user);
+        } else if (donationDto.cityId() != null) {
+            log.info("Попытка создать донат по id города = {}", donationDto.cityId());
+            processCityDonation(donationDto, user);
         } else {
-            throw new RuntimeException("Нужно указать shelterId или cityId");
+            log.warn("Неверный ввод данных при создании доната ");
+            throw new BusinessLogicException("Нужно указать shelterId или cityId");
         }
     }
 
-    private Donation processShelterDonation(DonationDto donationDto, MyUser user) {
+    private void processShelterDonation(DonationDto donationDto, MyUser user) {
         Shelter shelter = shelterRepository.findById(donationDto.shelterId())
-                .orElseThrow(() -> new RuntimeException("Питомник не найден"));
+                .orElseThrow(() -> new BusinessLogicException("Питомник не найден"));
 
         user.setBalance(user.getBalance().subtract(donationDto.amount()));
         shelter.setBalance(shelter.getBalance().add(donationDto.amount()));
@@ -86,12 +94,13 @@ public class DonationService {
         donation.setDate(LocalDateTime.now());
         donation.setStatus("SUCCESS");
 
-        return donationRepository.save(donation);
+        log.info("Донат успешно создан пользователем id={}", user.getId());
+        donationRepository.save(donation);
     }
 
-    private Donation processCityDonation(DonationDto donationDto, MyUser user) {
+    private void processCityDonation(DonationDto donationDto, MyUser user) {
         City city = cityRepository.findById(donationDto.cityId())
-                .orElseThrow(() -> new RuntimeException("Город не найден"));
+                .orElseThrow(() -> new BusinessLogicException("Город не найден"));
 
         user.setBalance(user.getBalance().subtract(donationDto.amount()));
         city.setBalance(city.getBalance().add(donationDto.amount()));
@@ -106,6 +115,7 @@ public class DonationService {
         donation.setDate(LocalDateTime.now());
         donation.setStatus("SUCCESS");
 
-        return donationRepository.save(donation);
+        donationRepository.save(donation);
+        log.info("Донат успешно создан пользователем id={}", user.getId());
     }
 }

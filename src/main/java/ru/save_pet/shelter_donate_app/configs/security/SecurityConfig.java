@@ -48,6 +48,7 @@ public class SecurityConfig {
                             response.setStatus(HttpStatus.OK.value());
                             response.getWriter().write("Authentication successful");
                         })
+
                         .permitAll());
 
         return http.build();
